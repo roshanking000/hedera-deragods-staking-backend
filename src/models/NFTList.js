@@ -3,6 +3,7 @@ const NFTListSchema = new mongoose.Schema({
   token_id: { type: String, default: "" },
   serial_number: { type: String, default: "" },
   discord_id: { type: String, default: "" },
+  discord_name: { type: String, default: "" },
   wallet_id: { type: String, default: "" },
   point: { type: Number, default: 0 },
   reward: { type: Number, default: 0 },
