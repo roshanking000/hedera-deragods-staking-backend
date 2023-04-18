@@ -12,19 +12,51 @@ exports.checkListing = async (serialNumber_) => {
             }
         };
 
+        let _res = true;
+
         await axios(config)
             .then(function (res) {
-                for (let i = 0;i < res.data.length;i++) {
-                    if (res.data[i].nftData.serialNo === parseInt(serialNumber_, 10))
-                        return false
+                console.log("success")
+                for (let i = 0; i < res.data.length; i++) {
+                    if (res.data[i].nftData.serialNo === parseInt(serialNumber_, 10)) {
+                        console.log(res.data[i])
+                        _res = false;
+                    }
                 }
-                return true
             })
             .catch(function (error) {
                 console.log(error);
                 return false;
             });
-        return true;
+        return _res
+    } catch (error) {
+        return false;
+    }
+}
+
+exports.getSoldList = async () => {
+    try {
+        var config = {
+            method: 'get',
+            url: `https://hedera-nft-backend.herokuapp.com/collectionactivity/${DERAGODS_NFT_ID}`,
+            headers: {
+                'origin': 'https://zuse.market'
+            }
+        };
+
+        let _soldList = []
+        await axios(config)
+            .then(function (res) {
+                for (let i = 0; i < res.data.length; i++) {
+                    if (res.data[i].buyerAcc != undefined && Date.now() - new Date(res.data[i].updatedAt) < 86400000)
+                        _soldList.push(res.data[i])
+                }
+            })
+            .catch(function (error) {
+                console.log(error);
+                return false;
+            });
+        return _soldList
     } catch (error) {
         return false;
     }

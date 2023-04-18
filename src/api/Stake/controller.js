@@ -1,4 +1,5 @@
-const { checkListing } = require('../zuseAPI');
+const { checkListing, getSoldList } = require('../zuseAPI');
+const { getNftInfo } = require('../chainAction');
 
 const NFTList = require('../../models/NFTList')
 
@@ -20,24 +21,26 @@ exports.stakeNewNfts = async (req_, res_) => {
         // check zuse listing
         const _listingStatus = await checkListing(atob(_nftInfo.serial_number));
         if (!_listingStatus)
-            return res_.send({ result: true, msg: "This NFT was listed in Zuse Marketplace! You can't stake this NFT!" })
+            return res_.send({ result: false, error: "This NFT was listed in Zuse Marketplace! You can't stake this NFT!" })
 
         const _checkNFT = await NFTList.findOne({
             token_id: atob(_nftInfo.token_id),
             serial_number: atob(_nftInfo.serial_number),
             status: "unstaked"
         })
+        let _stakedNft
         if (!_checkNFT) {
-            const _newStakedNft = new NFTList({
+            _stakedNft = new NFTList({
                 token_id: atob(_nftInfo.token_id),
                 serial_number: atob(_nftInfo.serial_number),
                 discord_id: _discordName + "#" + _discriminator,
-                wallet_id: _walletId
+                wallet_id: _walletId,
+                stakedAt: Date.now()
             })
-            await _newStakedNft.save()
+            await _stakedNft.save()
         }
         else {
-            await NFTList.findOneAndUpdate(
+            _stakedNft = await NFTList.findOneAndUpdate(
                 {
                     token_id: atob(_nftInfo.token_id),
                     serial_number: atob(_nftInfo.serial_number),
@@ -46,14 +49,17 @@ exports.stakeNewNfts = async (req_, res_) => {
                 {
                     discord_id: _discordName + "#" + _discriminator,
                     wallet_id: _walletId,
-                    status: "staked"
-                }
+                    status: "staked",
+                    nft_status: "",
+                    stakedAt: Date.now()
+                },
+                { new: true }
             )
         }
 
-        setDaysTimeout(stakeTimerOut, 1, _discordName + "#" + _discriminator, _walletId)
+        setDaysTimeout(stakeTimerOut, 1, atob(_nftInfo.token_id), atob(_nftInfo.serial_number))
 
-        return res_.send({ result: true, msg: "NFTs successfully staked!" })
+        return res_.send({ result: true, point: _stakedNft.point, reward: _stakedNft.reward, msg: "NFTs successfully staked!" })
     } catch (error) {
         return res_.send({ result: false, error: 'Error detected in server progress!' })
     }
@@ -93,10 +99,10 @@ exports.unstake = async (req_, res_) => {
     }
 }
 
-function setDaysTimeout(callback, days, discordId_, walletId_) {
+function setDaysTimeout(callback, days, tokenId_, serialNumber_) {
     // 86400 seconds in a day
-    let msInDay = 86400 * 1000;
-    // let msInDay = 20 * 1000;
+    // let msInDay = 86400 * 1000;
+    let msInDay = 60000;
 
     let dayCount = 0;
     let timer = setInterval(function () {
@@ -104,27 +110,123 @@ function setDaysTimeout(callback, days, discordId_, walletId_) {
 
         if (dayCount === days) {
             clearInterval(timer);
-            callback(discordId_, walletId_);
+            callback(tokenId_, serialNumber_);
         }
     }, msInDay);
 }
 
-const stakeTimerOut = async (discordId_, walletId_) => {
+const stakeTimerOut = async (tokenId_, serialNumber_) => {
     // check existing
+    console.log(tokenId_, serialNumber_)
     const _findStakedNftInfo = await NFTList.findOne(
         {
-            discord_id: discordId_,
-            wallet_id: walletId_
+            token_id: tokenId_,
+            serial_number: serialNumber_,
+            status: "staked"
         }
     );
     if (_findStakedNftInfo === null) return;
 
-    await NFTList.findOneAndUpdate(
-        {
-            discord_id: discordId_,
-            wallet_id: walletId_
-        },
-        { point: _findStakedNftInfo.point + 5 }
-    );
-    setDaysTimeout(stakeTimerOut, 1, discordId_, walletId_);
+    // check zuse listing
+    const _listingStatus = await checkListing(serialNumber_);
+    if (!_listingStatus) {
+        // nft was listed in zuse
+        // unstake nft
+        await NFTList.findOneAndUpdate(
+            {
+                token_id: tokenId_,
+                serial_number: serialNumber_,
+                status: "staked"
+            },
+            {
+                point: _findStakedNftInfo.point - parseInt((_findStakedNftInfo.point / 100) * 15, 10),
+                status: "unstaked",
+                listed: "YES"
+            }
+        )
+    }
+    else {
+        // get nft info from mirror node
+        const _nftInfo = await getNftInfo(tokenId_, serialNumber_)
+        if (_nftInfo) {
+            const _currentWalletId = _nftInfo.account_id
+            if (_findStakedNftInfo.wallet_id != _currentWalletId) {
+                console.log("nft is transfered or sold in zuse")
+                // nft is transfered or sold in zuse
+                const _soldList = await getSoldList()
+                if (_soldList != false) {
+                    let soldFlag = false
+                    for (let i = 0; i < _soldList.length; i++) {
+                        if (tokenId_ == _soldList[i].nftData.tokenId && parseInt(serialNumber_, 10) == _soldList[i].nftData.serialNo) {
+                            console.log("sold", tokenId_, serialNumber_)
+                            // nft was sold in zuse
+                            await NFTList.findOneAndUpdate(
+                                {
+                                    token_id: tokenId_,
+                                    serial_number: serialNumber_,
+                                    status: "staked"
+                                },
+                                {
+                                    discord_id: "",
+                                    wallet_id: "",
+                                    status: "unstaked",
+                                    reward: _findStakedNftInfo.reward + 500,
+                                    listed: "YES",
+                                    nft_status: "sold"
+                                }
+                            )
+                            soldFlag = true
+                        }
+                    }
+                    if (soldFlag == false) {
+                        // nft was transferred to other wallet
+                        await NFTList.findOneAndUpdate(
+                            {
+                                token_id: tokenId_,
+                                serial_number: serialNumber_,
+                                status: "staked"
+                            },
+                            {
+                                discord_id: "",
+                                wallet_id: "",
+                                status: "unstaked",
+                                nft_status: "transferred"
+                            }
+                        )
+                    }
+                }
+            }
+            else {
+                await NFTList.findOneAndUpdate(
+                    {
+                        token_id: tokenId_,
+                        serial_number: serialNumber_
+                    },
+                    { point: _findStakedNftInfo.point + 5 }
+                );
+            }
+        }
+    }
+
+    setDaysTimeout(stakeTimerOut, 1, tokenId_, serialNumber_);
 }
+
+const initLoanTimer = async () => {
+    const findNftList = await NFTList.find({ status: "staked" });
+    for (let i = 0; i < findNftList.length; i++) {
+        const _count = Math.floor((Date.now() - findNftList[i].stakedAt) / 6000000);
+        const _remainTime = (Date.now() - findNftList[i].stakedAt) % 6000000;
+
+        await NFTList.findOneAndUpdate(
+            {
+                token_id: findNftList[i].token_id,
+                serial_number: findNftList[i].serial_number
+            },
+            { point: 5 * _count }
+        )
+
+        setTimeout(stakeTimerOut, _remainTime, findNftList[i].token_id, findNftList[i].serial_number);
+    }
+}
+
+initLoanTimer();

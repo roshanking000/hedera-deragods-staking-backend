@@ -5,8 +5,11 @@ const NFTListSchema = new mongoose.Schema({
   discord_id: { type: String, default: "" },
   wallet_id: { type: String, default: "" },
   point: { type: Number, default: 0 },
-  never_listed: { type: String, default: "OK" },
-  status: { type: String, default: "staked" }
+  reward: { type: Number, default: 0 },
+  listed: { type: String, default: "NO" },
+  status: { type: String, default: "staked" },
+  nft_status: { type: String, default: "" },
+  stakedAt: { type: Date }
 }, { timestamps: true });
 
 module.exports = NFTList = mongoose.model('NFTList', NFTListSchema);
