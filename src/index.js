@@ -1,7 +1,6 @@
 const express = require('express');
 const app = express();
-//const https = require("https");
-const http = require("http");
+const https = require("https");
 const cors = require('cors');
 
 const api = require("./api");
@@ -32,20 +31,17 @@ db.mongoose
     process.exit();
   });
 
-const server = http.createServer(app);
+const httpsPort = 3307;
+const privateKey = fs.readFileSync("/etc/letsencrypt/live/stake.deragods.com/privkey.pem");
+const certificate = fs.readFileSync("/etc/letsencrypt/live/stake.deragods.com/fullchain.pem");
 
-// const httpsPort = 3306;
-// const privateKey = fs.readFileSync("/etc/letsencrypt/live/degenland.tech/privkey.pem");
-// const certificate = fs.readFileSync("/etc/letsencrypt/live/degenland.tech/fullchain.pem");
+const credentials = {
+  key: privateKey,
+  cert: certificate,
+}
 
-// const credentials = {
-//   key: privateKey,
-//   cert: certificate,
-// }
+const server = https.createServer(credentials, app);
 
-// const server = https.createServer(credentials, app);
-
-server.listen(5000, () => 'Server is running on port 5000');
-// server.listen(httpsPort, () => {
-//   console.log(`[degenland.tech] servier is running at port ${httpsPort} as https.`);
-// });
+server.listen(httpsPort, () => {
+  console.log(`[stake.deragods.com] servier is running at port ${httpsPort} as https.`);
+});
