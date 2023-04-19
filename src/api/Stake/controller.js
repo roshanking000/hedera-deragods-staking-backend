@@ -1,7 +1,28 @@
-const { checkListing, getSoldList } = require('../zuseAPI');
+const { getFloorPrice, checkListing, getSoldList } = require('../zuseAPI');
 const { getNftInfo } = require('../chainAction');
 
 const NFTList = require('../../models/NFTList')
+
+exports.getStakeInfo = async (req_, res_) => {
+    try {
+        //get staked nft count
+        const _stakedCountInfo = await NFTList.find({ status: "staked" })
+
+        //get floor price in zuse
+        const _deragodsNftTokenId = "0.0.1099951"
+        const _floorPrice = await getFloorPrice(_deragodsNftTokenId)
+
+        //get rewarded value
+        let rewardedValue = 0
+        const _allNftData = await NFTList.find({})
+        for (let i = 0;i < _allNftData.length;i++)
+            rewardedValue = rewardedValue + _allNftData[i].point + _allNftData[i].reward
+
+        return res_.send({ result: true, data: { stakedNftCount: _stakedCountInfo.length, lockedValue: _stakedCountInfo.length*_floorPrice, rewardedValue: rewardedValue } })
+    } catch (error) {
+        return res_.send({ result: false, error: 'Error detected in server progress!' })
+    }
+}
 
 exports.stakeNewNfts = async (req_, res_) => {
     try {
@@ -105,8 +126,7 @@ exports.unstake = async (req_, res_) => {
 
 function setDaysTimeout(callback, days, tokenId_, serialNumber_) {
     // 86400 seconds in a day
-    // let msInDay = 86400 * 1000;
-    let msInDay = 600000;
+    let msInDay = 86400 * 1000;
 
     let dayCount = 0;
     let timer = setInterval(function () {
@@ -218,8 +238,8 @@ const stakeTimerOut = async (tokenId_, serialNumber_) => {
 const initLoanTimer = async () => {
     const findNftList = await NFTList.find({ status: "staked" });
     for (let i = 0; i < findNftList.length; i++) {
-        const _count = Math.floor((Date.now() - findNftList[i].stakedAt) / 600000);
-        const _remainTime = (Date.now() - findNftList[i].stakedAt) % 600000;
+        const _count = Math.floor((Date.now() - findNftList[i].stakedAt) / 86400000);
+        const _remainTime = (Date.now() - findNftList[i].stakedAt) % 86400000;
 
         await NFTList.findOneAndUpdate(
             {
