@@ -9,8 +9,7 @@ exports.getStakeInfo = async (req_, res_) => {
         const _stakedCountInfo = await NFTList.find({ status: "staked" })
 
         //get floor price in zuse
-        const _deragodsNftTokenId = "0.0.1099951"
-        const _floorPrice = await getFloorPrice(_deragodsNftTokenId)
+        const _floorPrice = await getFloorPrice()
 
         //get rewarded value
         let rewardedValue = 0
@@ -29,10 +28,10 @@ exports.stakeNewNfts = async (req_, res_) => {
         if (!req_.body.discordId || !req_.body.discordName || !req_.body.discriminator || !req_.body.walletId || !req_.body.nftInfo)
             return res_.send({ result: false, error: 'Invalid post data!' })
 
-        const _discordId = atob(req_.body.discordId)
-        const _discordName = atob(req_.body.discordName)
-        const _discriminator = atob(req_.body.discriminator)
-        const _walletId = atob(req_.body.walletId)
+        const _discordId = req_.body.discordId
+        const _discordName = req_.body.discordName
+        const _discriminator = req_.body.discriminator
+        const _walletId = req_.body.walletId
         const _nftInfo = req_.body.nftInfo
 
         //check user
@@ -41,19 +40,19 @@ exports.stakeNewNfts = async (req_, res_) => {
             return res_.send({ result: false, error: "Unregistered user!" })
 
         // check zuse listing
-        const _listingStatus = await checkListing(atob(_nftInfo.serial_number));
+        const _listingStatus = await checkListing(_nftInfo.serial_number);
         if (!_listingStatus)
             return res_.send({ result: false, error: "This NFT was listed in Zuse Marketplace! You can't stake this NFT!" })
 
         const _checkNFT = await NFTList.findOne({
-            token_id: atob(_nftInfo.token_id),
-            serial_number: atob(_nftInfo.serial_number),
+            token_id: _nftInfo.token_id,
+            serial_number: _nftInfo.serial_number,
         })
         let _stakedNft
         if (!_checkNFT) {
             _stakedNft = new NFTList({
-                token_id: atob(_nftInfo.token_id),
-                serial_number: atob(_nftInfo.serial_number),
+                token_id: _nftInfo.token_id,
+                serial_number: _nftInfo.serial_number,
                 discord_id: _discordId,
                 discord_name: _discordName + "#" + _discriminator,
                 wallet_id: _walletId,
@@ -65,8 +64,8 @@ exports.stakeNewNfts = async (req_, res_) => {
         else {
             _stakedNft = await NFTList.findOneAndUpdate(
                 {
-                    token_id: atob(_nftInfo.token_id),
-                    serial_number: atob(_nftInfo.serial_number),
+                    token_id: _nftInfo.token_id,
+                    serial_number: _nftInfo.serial_number,
                 },
                 {
                     discord_id: _discordId,
@@ -80,7 +79,7 @@ exports.stakeNewNfts = async (req_, res_) => {
             )
         }
 
-        setDaysTimeout(stakeTimerOut, 1, atob(_nftInfo.token_id), atob(_nftInfo.serial_number))
+        setDaysTimeout(stakeTimerOut, 1, _nftInfo.token_id, _nftInfo.serial_number)
 
         return res_.send({ result: true, point: _stakedNft.point, reward: _stakedNft.reward, msg: "NFTs successfully staked!" })
     } catch (error) {
@@ -93,10 +92,10 @@ exports.unstake = async (req_, res_) => {
         if (!req_.body.discordId || !req_.body.discordName || !req_.body.discriminator || !req_.body.walletId || !req_.body.nftInfo)
             return res_.send({ result: false, error: 'Invalid post data!' })
 
-        const _discordId = atob(req_.body.discordId)
-        const _discordName = atob(req_.body.discordName)
-        const _discriminator = atob(req_.body.discriminator)
-        const _walletId = atob(req_.body.walletId)
+        const _discordId = req_.body.discordId
+        const _discordName = req_.body.discordName
+        const _discriminator = req_.body.discriminator
+        const _walletId = req_.body.walletId
         const _nftInfo = req_.body.nftInfo
 
         //check user
@@ -109,8 +108,8 @@ exports.unstake = async (req_, res_) => {
                 discord_id: _discordId,
                 discord_name: _discordName + "#" + _discriminator,
                 wallet_id: _walletId,
-                token_id: atob(_nftInfo.token_id),
-                serial_number: atob(_nftInfo.serial_number),
+                token_id: _nftInfo.token_id,
+                serial_number: _nftInfo.serial_number,
                 status: "staked"
             },
             {

@@ -1,12 +1,13 @@
 const axios = require('axios');
 
-const DERAGODS_NFT_ID = "0.0.1099951";
+// const DERAGODS_NFT_ID = "0.0.1099951";
+const DERAGODS_NFT_ID = "0.0.1122159";
 
-exports.getFloorPrice = async (tokenId_) => {
+exports.getFloorPrice = async () => {
     try {
         var config = {
             method: 'get',
-            url: `https://hedera-nft-backend.herokuapp.com/api/collectioninfo/${tokenId_}`,
+            url: `https://hedera-nft-backend.herokuapp.com/api/collectioninfo/${DERAGODS_NFT_ID}`,
             headers: {
                 'origin': 'https://zuse.market'
             }
@@ -31,10 +32,36 @@ exports.getFloorPrice = async (tokenId_) => {
             return (floorPrice*DEFAULT_HBAR_PRICE).toFixed(3)
         else {
             if (_hbarResult)
-                return floorPrice*parseFloat(_hbarResult.data["hedera-hashgraph"].usd).toFixed(3)
+                return parseFloat(floorPrice*_hbarResult.data["hedera-hashgraph"].usd).toFixed(3)
             else
                 return (floorPrice*DEFAULT_HBAR_PRICE).toFixed(3)
         }
+    } catch (error) {
+        return false;
+    }
+}
+
+exports.getListingData = async () => {
+    try {
+        var config = {
+            method: 'get',
+            url: `https://hedera-nft-backend.herokuapp.com/collection/${DERAGODS_NFT_ID}`,
+            headers: {
+                'origin': 'https://zuse.market'
+            }
+        };
+
+        let _listingData
+
+        await axios(config)
+            .then(function (res) {
+                _listingData = res.data
+            })
+            .catch(function (error) {
+                console.log(error);
+                return false;
+            });
+        return _listingData
     } catch (error) {
         return false;
     }

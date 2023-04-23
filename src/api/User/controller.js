@@ -1,5 +1,4 @@
-const { checkListing, getSoldList } = require('../zuseAPI');
-const { getNftInfo } = require('../chainAction');
+const { checkListing, getSoldList, getListingData } = require('../zuseAPI');
 
 const User = require('../../models/User')
 const NFTList = require('../../models/NFTList')
@@ -25,6 +24,9 @@ exports.getUserInfo = async (req_, res_) => {
             await _newUser.save()
         }
 
+        const _listingData = await getListingData()
+        const _soldList = await getSoldList()
+
         for (let i = 0; i < _nftData.length; i++) {
             let _newFlag = false
             let _stakedNft = await NFTList.findOne({
@@ -45,8 +47,14 @@ exports.getUserInfo = async (req_, res_) => {
                 _newFlag = true
             }
 
+            let _listingStatus = true
             // check zuse listing
-            const _listingStatus = await checkListing(_stakedNft.serial_number);
+            for (let i = 0; i < _listingData.length; i++) {
+                if (_listingData[i].nftData.serialNo === parseInt(_stakedNft.serial_number, 10)) {
+                    _listingStatus = false;
+                }
+            }
+
             if (!_listingStatus) {
                 // nft was listed in zuse
                 // unstake nft
@@ -64,7 +72,6 @@ exports.getUserInfo = async (req_, res_) => {
             }
             else {
                 // nft is transfered or sold in zuse
-                const _soldList = await getSoldList()
                 if (_soldList != false) {
                     let soldFlag = false
                     for (let j = 0; j < _soldList.length; j++) {
