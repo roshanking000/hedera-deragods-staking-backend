@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-// const DERAGODS_NFT_ID = "0.0.1099951";
-const DERAGODS_NFT_ID = "0.0.1122159";
+const DERAGODS_NFT_ID = "0.0.1099951";
+// const DERAGODS_NFT_ID = "0.0.1122159";
 
 exports.getFloorPrice = async () => {
     try {

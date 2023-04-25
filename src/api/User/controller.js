@@ -123,7 +123,18 @@ exports.getUserInfo = async (req_, res_) => {
             status: "staked"
         })
 
-        return res_.send({ result: true, data: _stakedNfts, msg: "success" });
+        //get total point
+        const _totalNftInfo = await NFTList.find({
+            discord_id: _discordId,
+            discord_name: _discordName + "#" + _discriminator,
+            wallet_id: _walletId
+        })
+
+        let _totalPoint = 0
+        for (let i = 0;i < _totalNftInfo.length;i++)
+            _totalPoint = _totalPoint + _totalNftInfo[i].point + _totalNftInfo[i].reward
+
+        return res_.send({ result: true, data: _stakedNfts, totalPoint: _totalPoint, msg: "success" });
     } catch (error) {
         return res_.send({ result: false, error: 'Error detected in server progress!' });
     }
